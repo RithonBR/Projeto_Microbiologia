@@ -1,0 +1,168 @@
+---
+title: "Teste Luciano contagem e medidas"
+format: html
+editor: visual
+---
+
+## Ativar a biblioteca e setar repo de imagens
+
+Nesse caso as imagens deverão estar na pasta img deste documento
+
+```{r}
+library(pliman)
+
+set_wd_here("img")
+```
+
+## Metodos de medir o fungo
+
+Nesse caso as imagens deverão estar na pasta img com o nome fungo
+
+```{r}
+fungo <- image_import("img/fungo.jpeg", plot = TRUE)
+```
+
+## Medir o fungo com referencias
+
+Quando iniciar o comando analyze voce deve utilizar o botão draw marker para pegar pontos aonde o fungo não se encontra e clicar em done, logo apos selecione o fungo.
+
+```{r}
+res <-analyze_objects(fungo,
+                  viewer = "map",
+                  pick_palettes = TRUE,
+                  filter = 5,
+                  watershed = FALSE,
+                  contour_size = 6)
+
+
+get_measures(res, dpi = 90) |> plot_measures(measure = "area", col = "black",size = 2)
+```
+
+## Medir automatizado o exemplo
+
+Nesse caso tentarei automatizar para pegar a medida, dependendo da imagem necessita mexer no size(Placa_Petri) ,Filter(Fungo_contorno) e dpi (placa de petri de 90mm)
+
+```{r}
+Placa_Petri <- image_segment_mask(fungo,shape = "disc", size = 280, plot = TRUE)
+
+fungo_Foto <- image_index(Placa_Petri,index = "HUE")
+
+fungo_Binary <- image_binary(Placa_Petri,index = "HUE", filter = 5)[[1]]
+
+fungo_contorno <- analyze_objects(Placa_Petri,index = "HUE",invert = TRUE , filter = 7)
+
+
+get_measures(fungo_contorno, dpi = 90) |> plot_measures(measure = "area", col = "black",size = 3)
+
+```
+
+## Espaço de Testes
+
+```{r}
+library(pliman)
+
+set_wd_here("img")
+fungo <- image_import("teste-area.jpeg", plot = FALSE)
+
+imgres <- dpi(fungo, viewer = "mapview")
+fungo <- image_resize(fungo, rel_size = 50, plot = TRUE)
+hw <- image_dimension(fungo)
+Placa_Petri <- image_segment_mask(fungo,shape = "disc", plot = TRUE, size = hw[[2]]-1)
+
+indexes <- image_index(Placa_Petri, index = c("R, HUE, B, GRAY, S, R-(B/G)"))
+
+fungo_Foto <- image_index(Placa_Petri,index = indexes)
+
+fungo_Binary <- image_binary(Placa_Petri,index = "", filter = 10)[[0]]
+
+fungo_contorno <- analyze_objects(Placa_Petri,index = "",invert = TRUE , filter = 8)
+
+get_measures(fungo_contorno, dpi = imgres) |> plot_measures(measure = "area", col = "black",size = 3)
+
+```
+
+## Espaço de Testes automatizados (imagens 590x600)
+
+```{r}
+library(pliman)
+set_wd_here("img")
+fungo <- image_import("teste-area.jpeg", plot = FALSE)
+
+fungo <- image_resize(fungo,rel_size = 50,plot = TRUE)
+pegar_circulo <- image_dimension(fungo)
+
+fungo <- image_segment_mask(fungo, shape = "disc",size = pegar_circulo[[2]] -1)
+
+indexes <- c("BIM,L*,L,GRAY")
+
+```
+
+## Metodos de Contagem (necessita de otimização na contagem dos halos)
+
+Nesse caso as imagens deverão estar na pasta img com o nome contagem
+
+```{r}
+library(pliman)
+library(tidyverse)
+library(ggridges)
+
+set_wd_here("img")
+
+contagem <- image_import("bacterias.jpg", plot = TRUE)
+
+# ignorar comando a baixo, pois a imagem ja esta 400x400
+#contagem <- image_resize(contagem,rel_size = 50)
+
+x <- image_dimension(contagem)
+
+indexes <- c("R,B,G,HUE,HUE2,BIM")
+
+contagem <- image_segment_mask(contagem, shape = "disc",size = x[[1]]-31)
+
+image_index(contagem, index = indexes)
+
+#area total da placa colonizada
+seg <- image_segment(contagem,
+                     index = "HUE",
+                     col_background = "BLACK",
+                     invert = FALSE,
+                     plot = TRUE)
+
+#seguementar colonias com seus halos
+seg2 <- image_segment(contagem,
+                     index = "HUE",
+                     col_background = "BLACK",
+                     invert = TRUE,
+                     plot = TRUE)
+
+#verificar qual index as colonias ficam mais evidentes
+image_index(seg2, index = indexes)
+
+#codigo para pegar DPI (fazer uma linha com drawn line de um canto a outro e botar "9")
+pegar_dpi <- dpi(contagem,viewer = "map")
+
+#tentar pegar somente os halos
+seg3 <- image_segment(seg2,
+                      index = "HUE2",
+                      col_background = "BLACK",
+                      invert = FALSE,
+                      plot = TRUE)
+#pegar o espaço entre as colonias
+res1 <- 
+  analyze_objects(seg2,
+                  index = "G",
+                  invert = TRUE,
+                  marker = "point")
+#pegar as colonias (halos completos)
+res2 <- 
+  analyze_objects(seg,
+                  index = "R")
+get_measures(res2, dpi = pegar_dpi) |> plot_measures(measure = "area", col = "RED",size = 1)
+
+
+res3 <-
+  analyze_objects(seg3,
+                  index = "HUE2",
+                  invert = TRUE,
+                  marker = "id")
+```
